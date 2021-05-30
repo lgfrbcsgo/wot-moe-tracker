@@ -1,7 +1,6 @@
 import { render, TemplateResult } from "lit"
 
 export type Dispatch<Msg> = (message: Msg) => void
-
 export type Command<Msg, Deps> = (dispatch: Dispatch<Msg>, dependencies: Deps) => void
 
 export type UpdateReturn<State, Msg, Deps> = readonly [state: State, ...commands: Array<Command<Msg, Deps>>]
