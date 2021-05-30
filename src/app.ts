@@ -2,7 +2,7 @@ export type Dispatch<Msg> = (message: Msg) => void
 
 export type Command<Msg, Deps> = (dispatch: Dispatch<Msg>, dependencies: Deps) => void
 
-export type UpdateReturn<State, Msg, Deps> = [state: State, ...commands: Array<Command<Msg, Deps>>]
+export type UpdateReturn<State, Msg, Deps> = readonly [state: State, ...commands: Array<Command<Msg, Deps>>]
 
 export type Init<State, Msg, Deps> = () => UpdateReturn<State, Msg, Deps>
 export type Update<State, Msg, Deps> = (state: State, message: Msg) => UpdateReturn<State, Msg, Deps>

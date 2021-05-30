@@ -1,4 +1,6 @@
 {
+    "arrowParens": "avoid",
+    "quoteProps": "consistent",
     "trailingComma": "all",
     "semi": false
 }
