@@ -1,4 +1,4 @@
-import { render, TemplateResult } from "lit"
+import { render, TemplateResult } from "lit-html"
 
 export type Dispatch<Msg> = (message: Msg) => void
 export type Command<Msg, Deps> = (dispatch: Dispatch<Msg>, dependencies: Deps) => void

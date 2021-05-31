@@ -1,4 +1,4 @@
-import { html } from "lit"
+import { html } from "lit-html"
 import { Init, runApp, Update, View } from "./app"
 import { impl, matchExhaustive, Variant } from "@practical-fp/union-types"
 import { services, Services } from "./services"
