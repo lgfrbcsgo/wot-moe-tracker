@@ -6,6 +6,10 @@ const MiniCssExtractPlugin = require("mini-css-extract-plugin")
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin")
 const path = require("path")
 
+const DIST = path.join(__dirname, "./dist")
+const ENTRY = path.join(__dirname, "./src/main.ts")
+const TEMPLATE = path.join(__dirname, "./public/index.html")
+
 module.exports = ({ ifDev, ifProd }) => ({
     ...ifDev({
         mode: "development",
@@ -16,7 +20,7 @@ module.exports = ({ ifDev, ifProd }) => ({
         devtool: "source-map",
     }),
     output: {
-        path: path.join(__dirname, "./dist"),
+        path: DIST,
         filename: "[name].[fullhash].js",
         ...ifProd({
             publicPath: "/wot-moe-tracker/",
@@ -24,11 +28,11 @@ module.exports = ({ ifDev, ifProd }) => ({
     },
     devServer: {
         publicPath: "/",
-        contentBase: "./dist",
+        contentBase: DIST,
         port: 8080,
         historyApiFallback: true,
     },
-    entry: "./src/main.ts",
+    entry: ENTRY,
     resolve: {
         extensions: [".ts", ".js"],
     },
@@ -55,7 +59,7 @@ module.exports = ({ ifDev, ifProd }) => ({
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
             filename: "index.html",
-            template: "./public/index.html",
+            template: TEMPLATE,
         }),
         new MiniCssExtractPlugin({
             filename: "[name].[fullhash].css",
@@ -75,6 +79,6 @@ module.exports = ({ ifDev, ifProd }) => ({
                 },
             },
         },
-        minimizer: ifProd([new TerserJSPlugin({}), new CssMinimizerPlugin({})]),
+        minimizer: [new TerserJSPlugin(), new CssMinimizerPlugin()],
     },
 })

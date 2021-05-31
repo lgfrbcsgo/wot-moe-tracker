@@ -1,12 +1,12 @@
 {
     "compilerOptions": {
         "moduleResolution": "node",
-        "module": "es6",
-        "target": "es6",
+        "module": "es2020",
+        "target": "es2020",
         "sourceMap": true,
         "strict": true,
         "lib": [
-            "es6",
+            "es2020",
             "dom"
         ]
     },
