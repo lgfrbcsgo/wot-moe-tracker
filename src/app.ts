@@ -1,47 +1,23 @@
-import { render, TemplateResult } from "lit-html"
+import { Init, Update, View } from "./runtime"
+import { Services } from "./services"
+import { impl, matchExhaustive, Variant } from "@practical-fp/union-types"
+import { html } from "lit-html"
 
-export type Dispatch<Msg> = (message: Msg) => void
-export type Command<Msg, Deps> = (dispatch: Dispatch<Msg>, dependencies: Deps) => void
+export type Msg = Variant<"Increment"> | Variant<"Decrement">
+export const { Increment, Decrement } = impl<Msg>()
 
-export type UpdateReturn<State, Msg, Deps> = readonly [state: State, ...commands: Array<Command<Msg, Deps>>]
+export type State = number
 
-export type Init<State, Msg, Deps> = () => UpdateReturn<State, Msg, Deps>
-export type Update<State, Msg, Deps> = (state: State, message: Msg) => UpdateReturn<State, Msg, Deps>
-export type View<State, Msg> = (state: State, dispatch: Dispatch<Msg>) => TemplateResult
+export const init: Init<State, Msg, Services> = () => [0]
 
-export function runApp<State, Msg, Deps, ViewResult>(
-    init: Init<State, Msg, Deps>,
-    update: Update<State, Msg, Deps>,
-    view: View<State, Msg>,
-    dependencies: Deps,
-    element: HTMLElement,
-) {
-    let [state, ...commands] = init()
+export const update: Update<State, Msg, Services> = (state, message) =>
+    matchExhaustive(message, {
+        Increment: () => [state + 1] as const,
+        Decrement: () => [state - 1] as const,
+    })
 
-    const dispatch = (msg: Msg) => {
-        const [nextState, ...commands] = update(state, msg)
-        if (state !== nextState) {
-            state = nextState
-            queueRender(state)
-        }
-        executeCommands(commands)
-    }
-
-    const executeCommands = (commands: Array<Command<Msg, Deps>>) => {
-        commands.forEach(command => command(dispatch, dependencies))
-    }
-
-    let animationFrameHandle: number | undefined = undefined
-    const queueRender = (state: State) => {
-        if (animationFrameHandle !== undefined) {
-            cancelAnimationFrame(animationFrameHandle)
-        }
-        animationFrameHandle = requestAnimationFrame(() => {
-            const viewResult = view(state, dispatch)
-            render(viewResult, element)
-        })
-    }
-
-    queueRender(state)
-    executeCommands(commands)
-}
+export const view: View<State, Msg> = (state, dispatch) => html`
+    <h1>${state}</h1>
+    <button @click=${() => dispatch(Increment())}>+</button>
+    <button @click=${() => dispatch(Decrement())}>-</button>
+`
