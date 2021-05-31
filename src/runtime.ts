@@ -1,19 +1,18 @@
 import { render, TemplateResult } from "lit-html"
 
 export type Dispatch<Msg> = (message: Msg) => void
-export type Command<Msg, Deps> = (dispatch: Dispatch<Msg>, dependencies: Deps) => void
+export type Command<Msg> = (dispatch: Dispatch<Msg>) => void
 
-export type UpdateReturn<State, Msg, Deps> = readonly [state: State, ...commands: Array<Command<Msg, Deps>>]
+export type UpdateReturn<State, Msg> = readonly [state: State, ...commands: Array<Command<Msg>>]
 
-export type Init<State, Msg, Deps> = () => UpdateReturn<State, Msg, Deps>
-export type Update<State, Msg, Deps> = (state: State, message: Msg) => UpdateReturn<State, Msg, Deps>
+export type Init<State, Msg> = () => UpdateReturn<State, Msg>
+export type Update<State, Msg> = (state: State, message: Msg) => UpdateReturn<State, Msg>
 export type View<State, Msg> = (state: State, dispatch: Dispatch<Msg>) => TemplateResult
 
-export function runApp<State, Msg, Deps, ViewResult>(
-    init: Init<State, Msg, Deps>,
-    update: Update<State, Msg, Deps>,
+export function runApp<State, Msg>(
+    init: Init<State, Msg>,
+    update: Update<State, Msg>,
     view: View<State, Msg>,
-    dependencies: Deps,
     element: HTMLElement,
 ) {
     let [state, ...commands] = init()
@@ -27,8 +26,8 @@ export function runApp<State, Msg, Deps, ViewResult>(
         executeCommands(commands)
     }
 
-    const executeCommands = (commands: Array<Command<Msg, Deps>>) => {
-        commands.forEach(command => command(dispatch, dependencies))
+    const executeCommands = (commands: Array<Command<Msg>>) => {
+        commands.forEach(command => command(dispatch))
     }
 
     let animationFrameHandle: number | undefined = undefined
