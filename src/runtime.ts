@@ -1,20 +1,23 @@
 import { render, TemplateResult } from "lit-html"
+import { AnyVariant } from "@practical-fp/union-types"
 
-export type Dispatch<Msg> = (message: Msg) => void
-export type Command<Msg> = (dispatch: Dispatch<Msg>) => void
+export type Dispatch<Msg extends AnyVariant> = (message: Msg) => void
+export type Command<Msg extends AnyVariant> = (dispatch: Dispatch<Msg>) => void
 
-export type UpdateReturn<State, Msg> = readonly [state: State, ...commands: Array<Command<Msg>>]
+export type UpdateReturn<State, Msg extends AnyVariant> = readonly [state: State, ...commands: Array<Command<Msg>>]
 
-export type Init<State, Msg> = () => UpdateReturn<State, Msg>
-export type Update<State, Msg> = (state: State, message: Msg) => UpdateReturn<State, Msg>
-export type View<State, Msg> = (state: State, dispatch: Dispatch<Msg>) => TemplateResult
+export type Init<State, Msg extends AnyVariant> = () => UpdateReturn<State, Msg>
+export type Update<State, Msg extends AnyVariant> = (state: State, message: Msg) => UpdateReturn<State, Msg>
+export type View<State, Msg extends AnyVariant> = (state: State, dispatch: Dispatch<Msg>) => TemplateResult
 
-export function runApp<State, Msg>(
+export function runApp<State, Msg extends AnyVariant>(
     init: Init<State, Msg>,
     update: Update<State, Msg>,
     view: View<State, Msg>,
     element: HTMLElement,
 ) {
+    const devtools = new Devtools()
+
     let [state, ...commands] = init()
 
     const dispatch = (msg: Msg) => {
@@ -23,6 +26,7 @@ export function runApp<State, Msg>(
             state = nextState
             queueRender(state)
         }
+        devtools.send(msg, state)
         executeCommands(commands)
     }
 
@@ -42,5 +46,32 @@ export function runApp<State, Msg>(
     }
 
     queueRender(state)
+    devtools.init(state)
     executeCommands(commands)
+}
+
+
+class Devtools {
+    private connection: any
+
+    constructor() {
+        this.connection = (window as any).__REDUX_DEVTOOLS_EXTENSION__?.connect({
+            autoPause: true,
+            features: {},
+            maxAge: 25,
+        })
+    }
+
+    init(state: unknown) {
+        queueMicrotask(() => this.connection?.init(state))
+    }
+
+    send(msg: AnyVariant, state: unknown) {
+        queueMicrotask(() =>
+            this.connection?.send({
+                type: msg.tag,
+                payload: msg.value,
+            }, state),
+        )
+    }
 }
