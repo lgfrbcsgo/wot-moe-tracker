@@ -23,6 +23,7 @@
     },
     "dependencies": {
         "@practical-fp/union-types": "1.5.1",
-        "lit-html": "2.0.0-rc.2"
+        "idb": "6.1.2",
+        "lit-html": "2.0.0-rc.3"
     }
 }
