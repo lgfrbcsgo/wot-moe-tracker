@@ -60,7 +60,8 @@ export class Connection implements Observable<ConnectionMessage> {
     private handleStatusChange(newStatus: ConnectionStatus) {
         if (Disconnected.is(newStatus)) {
             this.socket = undefined
-            setTimeout(() => this.connect(), 5000)
+            if (Irrecoverable.is(this.status)) return
+            setTimeout(() => this.connect(), 10000)
         }
         if (Irrecoverable.is(newStatus)) {
             this.socket?.close()
