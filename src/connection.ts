@@ -71,7 +71,8 @@ export class Connection implements Observable<ConnectionMessage> {
     }
 }
 
-const isMarkOfExcellence = record({
+export type MarkOfExcellence = GuardedValue<typeof isMarkOfExcellence>
+export const isMarkOfExcellence = record({
     percentage: isNumber,
     damage: isNumber,
     battles: isNumber,
