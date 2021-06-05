@@ -2,16 +2,17 @@ import { DBSchema, openDB } from "idb"
 import { impl, Variant } from "@practical-fp/union-types"
 import { Emitter, Observable } from "./emitter"
 import { IDBPDatabase } from "idb/build/esm/entry"
+import { MarkOfExcellenceHistory, MarkOfExcellenceUpdate } from "./connection"
 
 export type DatabaseStatus =
     | Variant<"Closed">
     | Variant<"Opening">
     | Variant<"Open">
-    | Variant<"Error">
+    | Variant<"Irrecoverable">
     | Variant<"Blocked">
     | Variant<"Blocking">
 
-export const { Closed, Opening, Open, Error, Blocked, Blocking } = impl<DatabaseStatus>()
+export const { Closed, Opening, Open, Irrecoverable, Blocked, Blocking } = impl<DatabaseStatus>()
 
 export interface MarkOfExcellenceRecord {
     timestamp: number
@@ -22,13 +23,13 @@ export interface MarkOfExcellenceRecord {
 
 export interface VehicleRecord {
     account: string
-    vehicle: number
+    vehicle: string
     moeRecords: MarkOfExcellenceRecord[]
 }
 
 interface Schema extends DBSchema {
     moeStore: {
-        key: [string, number]
+        key: [string, string]
         value: VehicleRecord
         indexes: {
             account: string
@@ -54,7 +55,7 @@ export class Database implements Observable<DatabaseStatus> {
             blocked: () => this.handleStatusChange(Blocked()),
             blocking: () => this.handleStatusChange(Blocking()),
             terminated: () => {
-                this.handleStatusChange(Error())
+                this.handleStatusChange(Irrecoverable())
                 this.database = undefined
             },
         })
@@ -63,7 +64,7 @@ export class Database implements Observable<DatabaseStatus> {
                 this.handleStatusChange(Open())
             })
             .catch(() => {
-                this.handleStatusChange(Error())
+                this.handleStatusChange(Irrecoverable())
             })
     }
 
@@ -72,7 +73,56 @@ export class Database implements Observable<DatabaseStatus> {
         return this.emitter.observe(observer)
     }
 
-    handleStatusChange(newStatus: DatabaseStatus) {
+    async processUpdate(update: MarkOfExcellenceUpdate) {
+        if (!this.database) throw new Error("Database not opened.")
+        const tx = this.database.transaction("moeStore", "readwrite")
+        const store = tx.objectStore("moeStore")
+        for (const [vehicleId, record] of Object.entries(update.vehicles)) {
+            const vehicle = await store.get([update.account, vehicleId])
+            if (vehicle) {
+                const lastRecord = vehicle.moeRecords[vehicle.moeRecords.length - 1]
+                if (lastRecord.battles < record.battles) {
+                    vehicle.moeRecords.push({ ...record, timestamp: Date.now() })
+                    await store.put(vehicle)
+                }
+            } else {
+                await store.add({
+                    account: update.account,
+                    vehicle: vehicleId,
+                    moeRecords: [{ ...record, timestamp: Date.now() }],
+                })
+            }
+        }
+        await tx.done
+    }
+
+    async processHistory(history: MarkOfExcellenceHistory) {
+        if (!this.database) throw new Error("Database not opened.")
+        const tx = this.database.transaction("moeStore", "readwrite")
+        const store = tx.objectStore("moeStore")
+        for (const [account, vehicles] of Object.entries(history.accounts)) {
+            for (const [vehicleId, records] of Object.entries(vehicles)) {
+                const vehicle = await store.get([account, vehicleId])
+                if (vehicle) {
+                    const lastRecord = vehicle.moeRecords[vehicle.moeRecords.length - 1]
+                    for (const record of records) {
+                        if (lastRecord.battles < record.battles) {
+                            vehicle.moeRecords.push({ ...record, timestamp: Date.now() })
+                        }
+                    }
+                    await store.put(vehicle)
+                } else {
+                    await store.add({
+                        account: account,
+                        vehicle: vehicleId,
+                        moeRecords: records.map(record => ({ ...record, timestamp: Date.now() })),
+                    })
+                }
+            }
+        }
+    }
+
+    private handleStatusChange(newStatus: DatabaseStatus) {
         this.status = newStatus
         this.emitter.emit(newStatus)
     }
