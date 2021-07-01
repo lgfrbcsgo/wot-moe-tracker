@@ -76,17 +76,25 @@ export const isMarkOfExcellence = record({
     percentage: isNumber,
     damage: isNumber,
     battles: isNumber,
+    marks: isNumber,
 })
 
 export type MarkOfExcellenceHistory = GuardedValue<typeof isMarkOfExcellenceHistory>
 export const isMarkOfExcellenceHistory = record({
     type: literal("MOE_HISTORY"),
-    accounts: dictionary(dictionary(array(isMarkOfExcellence))),
+    accounts: array(
+        record({
+            username: isString,
+            realm: isString,
+            vehicles: dictionary(array(isMarkOfExcellence)),
+        }),
+    ),
 })
 
 export type MarkOfExcellenceUpdate = GuardedValue<typeof isMarkOfExcellenceUpdate>
 export const isMarkOfExcellenceUpdate = record({
     type: literal("MOE_UPDATE"),
-    account: isString,
+    username: isString,
+    realm: isString,
     vehicles: dictionary(isMarkOfExcellence),
 })

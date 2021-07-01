@@ -18,21 +18,23 @@ export interface MarkOfExcellenceRecord {
     timestamp: number
     percentage: number
     damage: number
+    marks: number
     battles: number
 }
 
 export interface VehicleRecord {
-    account: string
+    username: string
+    realm: string
     vehicle: string
     moeRecords: MarkOfExcellenceRecord[]
 }
 
 interface Schema extends DBSchema {
     moeStore: {
-        key: [string, string]
+        key: [string, string, string]
         value: VehicleRecord
         indexes: {
-            account: string
+            account: [string, string]
         }
     }
 }
@@ -48,9 +50,9 @@ export class Database implements Observable<DatabaseStatus> {
         openDB<Schema>("moeDatabase", 1, {
             upgrade: database => {
                 const store = database.createObjectStore("moeStore", {
-                    keyPath: ["account", "vehicle"],
+                    keyPath: ["username", "realm", "vehicle"],
                 })
-                store.createIndex("account", "account")
+                store.createIndex("account", ["username", "realm"])
             },
             blocked: () => this.handleStatusChange(Blocked()),
             blocking: () => this.handleStatusChange(Blocking()),
@@ -78,7 +80,7 @@ export class Database implements Observable<DatabaseStatus> {
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")
         for (const [vehicleId, record] of Object.entries(update.vehicles)) {
-            const vehicle = await store.get([update.account, vehicleId])
+            const vehicle = await store.get([update.username, update.realm, vehicleId])
             if (vehicle) {
                 const lastRecord = vehicle.moeRecords[vehicle.moeRecords.length - 1]
                 if (lastRecord.battles < record.battles) {
@@ -87,7 +89,8 @@ export class Database implements Observable<DatabaseStatus> {
                 }
             } else {
                 await store.add({
-                    account: update.account,
+                    username: update.username,
+                    realm: update.realm,
                     vehicle: vehicleId,
                     moeRecords: [{ ...record, timestamp: Date.now() }],
                 })
@@ -100,9 +103,9 @@ export class Database implements Observable<DatabaseStatus> {
         if (!this.database) throw new Error("Database not opened.")
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")
-        for (const [account, vehicles] of Object.entries(history.accounts)) {
-            for (const [vehicleId, records] of Object.entries(vehicles)) {
-                const vehicle = await store.get([account, vehicleId])
+        for (const account of history.accounts) {
+            for (const [vehicleId, records] of Object.entries(account.vehicles)) {
+                const vehicle = await store.get([account.username, account.realm, vehicleId])
                 if (vehicle) {
                     const lastRecord = vehicle.moeRecords[vehicle.moeRecords.length - 1]
                     for (const record of records) {
@@ -113,7 +116,8 @@ export class Database implements Observable<DatabaseStatus> {
                     await store.put(vehicle)
                 } else {
                     await store.add({
-                        account: account,
+                        username: account.username,
+                        realm: account.realm,
                         vehicle: vehicleId,
                         moeRecords: records.map(record => ({ ...record, timestamp: Date.now() })),
                     })
