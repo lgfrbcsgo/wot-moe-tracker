@@ -2,7 +2,7 @@ import { DBSchema, openDB } from "idb"
 import { impl, Variant } from "@practical-fp/union-types"
 import { Emitter, Observable } from "./emitter"
 import { IDBPDatabase } from "idb/build/esm/entry"
-import { MarkOfExcellenceHistory, MarkOfExcellenceUpdate } from "./connection"
+import { MoeHistory, MoeUpdate } from "./connection"
 
 export type DatabaseStatus =
     | Variant<"Closed">
@@ -75,7 +75,7 @@ export class Database implements Observable<DatabaseStatus> {
         return this.emitter.observe(observer)
     }
 
-    async processUpdate(update: MarkOfExcellenceUpdate) {
+    async processUpdate(update: MoeUpdate) {
         if (!this.database) throw new Error("Database not opened.")
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")
@@ -99,7 +99,7 @@ export class Database implements Observable<DatabaseStatus> {
         await tx.done
     }
 
-    async processHistory(history: MarkOfExcellenceHistory) {
+    async processHistory(history: MoeHistory) {
         if (!this.database) throw new Error("Database not opened.")
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")

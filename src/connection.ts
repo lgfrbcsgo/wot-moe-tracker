@@ -1,5 +1,14 @@
 import { impl, Variant } from "@practical-fp/union-types"
-import { array, dictionary, GuardedValue, isNumber, isString, literal, record } from "./guards"
+import {
+    anyOf,
+    array,
+    dictionary,
+    GuardedValue,
+    isNumber,
+    isString,
+    literal,
+    record,
+} from "./guards"
 import { Emitter, Observable } from "./emitter"
 
 export type ConnectionStatus =
@@ -12,8 +21,8 @@ export const { Connecting, Connected, Disconnected, Irrecoverable } = impl<Conne
 
 export type ConnectionMessage =
     | Variant<"StatusChanged", ConnectionStatus>
-    | Variant<"UpdateReceived", MarkOfExcellenceUpdate>
-    | Variant<"HistoryReceived", MarkOfExcellenceHistory>
+    | Variant<"UpdateReceived", MoeUpdate>
+    | Variant<"HistoryReceived", MoeHistory>
 
 export const { StatusChanged, UpdateReceived, HistoryReceived } = impl<ConnectionMessage>()
 
@@ -48,9 +57,9 @@ export class Connection implements Observable<ConnectionMessage> {
             return this.handleStatusChange(Irrecoverable())
         }
 
-        if (isMarkOfExcellenceUpdate(payload)) {
+        if (isMoeUpdate(payload)) {
             return this.emitter.emit(UpdateReceived(payload))
-        } else if (isMarkOfExcellenceHistory(payload)) {
+        } else if (isMoeHistory(payload)) {
             return this.emitter.emit(HistoryReceived(payload))
         } else {
             return this.handleStatusChange(Irrecoverable())
@@ -71,30 +80,32 @@ export class Connection implements Observable<ConnectionMessage> {
     }
 }
 
-export type MarkOfExcellence = GuardedValue<typeof isMarkOfExcellence>
-export const isMarkOfExcellence = record({
+const isMoe = record({
     percentage: isNumber,
     damage: isNumber,
     battles: isNumber,
     marks: isNumber,
 })
 
-export type MarkOfExcellenceHistory = GuardedValue<typeof isMarkOfExcellenceHistory>
-export const isMarkOfExcellenceHistory = record({
+export type MoeHistory = GuardedValue<typeof isMoeHistory>
+export const isMoeHistory = record({
     type: literal("MOE_HISTORY"),
     accounts: array(
         record({
             username: isString,
             realm: isString,
-            vehicles: dictionary(array(isMarkOfExcellence)),
+            vehicles: dictionary(array(isMoe)),
         }),
     ),
 })
 
-export type MarkOfExcellenceUpdate = GuardedValue<typeof isMarkOfExcellenceUpdate>
-export const isMarkOfExcellenceUpdate = record({
+export type MoeUpdate = GuardedValue<typeof isMoeUpdate>
+export const isMoeUpdate = record({
     type: literal("MOE_UPDATE"),
     username: isString,
     realm: isString,
-    vehicles: dictionary(isMarkOfExcellence),
+    vehicles: dictionary(isMoe),
 })
+
+export type MoeMessage = GuardedValue<typeof isMoeMessage>
+export const isMoeMessage = anyOf(isMoeUpdate, isMoeHistory)
