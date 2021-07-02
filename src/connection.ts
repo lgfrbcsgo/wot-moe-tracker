@@ -1,4 +1,3 @@
-import { impl, Variant } from "@practical-fp/union-types"
 import {
     anyOf,
     array,
@@ -9,74 +8,61 @@ import {
     literal,
     record,
 } from "./guards"
-import { Emitter, Observable } from "./emitter"
+import { WritableReactiveValue, WritableStream } from "./stream"
 
-export type ConnectionStatus =
-    | Variant<"Connecting">
-    | Variant<"Connected">
-    | Variant<"Disconnected">
-    | Variant<"Irrecoverable">
+export const enum ConnectionStatus {
+    Connecting,
+    Connected,
+    Disconnected,
+    InvalidMessageFormat,
+}
 
-export const { Connecting, Connected, Disconnected, Irrecoverable } = impl<ConnectionStatus>()
-
-export type ConnectionMessage =
-    | Variant<"StatusChanged", ConnectionStatus>
-    | Variant<"UpdateReceived", MoeUpdate>
-    | Variant<"HistoryReceived", MoeHistory>
-
-export const { StatusChanged, UpdateReceived, HistoryReceived } = impl<ConnectionMessage>()
-
-export class Connection implements Observable<ConnectionMessage> {
-    private status: ConnectionStatus = Disconnected()
+export class Connection {
+    private _status$ = new WritableReactiveValue(ConnectionStatus.Disconnected)
+    private _messages$ = new WritableStream<MoeMessage>()
     private socket: WebSocket | undefined
-    private emitter = new Emitter<ConnectionMessage>()
+
+    readonly status$ = this._status$.readonly()
+    readonly messages$ = this._messages$.readonly()
 
     connect() {
         if (this.socket) return
-        this.handleStatusChange(Connecting())
         this.socket = new WebSocket("ws://localhost:15456")
-        this.socket.onopen = () => this.handleStatusChange(Connected())
-        this.socket.onclose = () => this.handleStatusChange(Disconnected())
+        this.socket.onopen = () => this.handleStatusChange(ConnectionStatus.Connected)
+        this.socket.onclose = () => this.handleStatusChange(ConnectionStatus.Disconnected)
         this.socket.onmessage = ({ data }) => this.handleMessage(data)
-    }
-
-    observe(observer: (value: ConnectionMessage) => void) {
-        observer(StatusChanged(this.status))
-        return this.emitter.observe(observer)
+        this.handleStatusChange(ConnectionStatus.Connecting)
     }
 
     private handleMessage(data: unknown) {
         if (!isString(data)) {
-            return this.handleStatusChange(Irrecoverable())
+            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
 
         let payload: unknown
         try {
             payload = JSON.parse(data)
         } catch (e) {
-            return this.handleStatusChange(Irrecoverable())
+            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
 
-        if (isMoeUpdate(payload)) {
-            return this.emitter.emit(UpdateReceived(payload))
-        } else if (isMoeHistory(payload)) {
-            return this.emitter.emit(HistoryReceived(payload))
+        if (isMoeMessage(payload)) {
+            return this._messages$.emit(payload)
         } else {
-            return this.handleStatusChange(Irrecoverable())
+            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
     }
 
     private handleStatusChange(newStatus: ConnectionStatus) {
-        if (Disconnected.is(newStatus)) {
+        if (ConnectionStatus.Disconnected === newStatus) {
             this.socket = undefined
-            if (Irrecoverable.is(this.status)) return
+            if (ConnectionStatus.InvalidMessageFormat === this._status$.value) return
             setTimeout(() => this.connect(), 10000)
         }
-        if (Irrecoverable.is(newStatus)) {
+        if (ConnectionStatus.InvalidMessageFormat === newStatus) {
             this.socket?.close()
         }
-        this.status = newStatus
-        this.emitter.emit(StatusChanged(newStatus))
+        this._status$.emit(newStatus)
     }
 }
 

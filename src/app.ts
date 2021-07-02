@@ -1,15 +1,15 @@
 import { Init, Update, View } from "./runtime"
 import { html } from "lit-html"
-import { Connection, ConnectionMessage, HistoryReceived, UpdateReceived } from "./connection"
-import { Database, DatabaseStatus, Open } from "./database"
-import { impl, tag, Variant } from "@practical-fp/union-types"
-import { __, match, select } from "ts-pattern"
+import { Connection, ConnectionStatus, MoeMessage } from "./connection"
+import { Database } from "./database"
+import { impl, matchExhaustive, Variant } from "@practical-fp/union-types"
 
 export type Message =
-    | Variant<"ConnectionMessage", ConnectionMessage>
-    | Variant<"DatabaseStatusChange", DatabaseStatus>
+    | Variant<"DatabaseInitialized">
+    | Variant<"ConnectionStatusChange", ConnectionStatus>
+    | Variant<"MoeMessageReceived", MoeMessage>
 
-const { ConnectionMessage, DatabaseStatusChange } = impl<Message>()
+const { DatabaseInitialized, ConnectionStatusChange, MoeMessageReceived } = impl<Message>()
 
 const connection = new Connection()
 const database = new Database()
@@ -18,25 +18,27 @@ export type State = undefined
 
 export const init: Init<State, Message> = () => [
     undefined,
-    () => database.open(),
-    dispatch => connection.observe(message => dispatch(ConnectionMessage(message))),
-    dispatch => database.observe(status => dispatch(DatabaseStatusChange(status))),
+    dispatch => database.open().then(() => dispatch(DatabaseInitialized())),
+    dispatch => connection.messages$.observe(message => dispatch(MoeMessageReceived(message))),
+    dispatch => connection.status$.observe(status => dispatch(ConnectionStatusChange(status))),
 ]
 
 export const update: Update<State, Message> = (state, message) => {
     console.log(message)
-    return match(message)
-        .with(
-            tag(ConnectionMessage.tag, tag(UpdateReceived.tag, select())),
-            update => [undefined, () => database.processUpdate(update)] as const,
-        )
-        .with(
-            tag(ConnectionMessage.tag, tag(HistoryReceived.tag, select())),
-            history => [undefined, () => database.processHistory(history)] as const,
-        )
-        .with(DatabaseStatusChange(Open()), () => [undefined, () => connection.connect()] as const)
-        .with(__, () => [undefined] as const)
-        .exhaustive()
+    return matchExhaustive(message, {
+        DatabaseInitialized: () => [undefined, () => connection.connect()] as const,
+        ConnectionStatusChange: () => [undefined] as const,
+        MoeMessageReceived: message => {
+            switch (message.type) {
+                case "MOE_UPDATE":
+                    return [undefined, () => database.processUpdate(message)] as const
+                case "MOE_HISTORY":
+                    return [undefined, () => database.processHistory(message)] as const
+                default:
+                    return [undefined] as const
+            }
+        },
+    })
 }
 
-export const view: View<State, Message> = (state, dispatch) => html` <h1>Works!</h1> `
+export const view: View<State, Message> = () => html`<h1>Works!</h1>`

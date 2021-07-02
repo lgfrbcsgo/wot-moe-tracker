@@ -1,18 +1,6 @@
 import { DBSchema, openDB } from "idb"
-import { impl, Variant } from "@practical-fp/union-types"
-import { Emitter, Observable } from "./emitter"
 import { IDBPDatabase } from "idb/build/esm/entry"
 import { MoeHistory, MoeUpdate } from "./connection"
-
-export type DatabaseStatus =
-    | Variant<"Closed">
-    | Variant<"Opening">
-    | Variant<"Open">
-    | Variant<"Irrecoverable">
-    | Variant<"Blocked">
-    | Variant<"Blocking">
-
-export const { Closed, Opening, Open, Irrecoverable, Blocked, Blocking } = impl<DatabaseStatus>()
 
 export interface MarkOfExcellenceRecord {
     timestamp: number
@@ -39,44 +27,29 @@ interface Schema extends DBSchema {
     }
 }
 
-export class Database implements Observable<DatabaseStatus> {
-    private status: DatabaseStatus = Closed()
-    private database: IDBPDatabase<Schema> | undefined
-    private emitter = new Emitter<DatabaseStatus>()
+export class DbBlockedError extends Error {}
+export class DbClosedError extends Error {}
 
-    open() {
-        if (Opening.is(this.status) || Open.is(this.status)) return
-        this.handleStatusChange(Opening())
-        openDB<Schema>("moeDatabase", 1, {
+export class Database {
+    private database: IDBPDatabase<Schema> | undefined
+
+    async open() {
+        if (this.database) return
+        this.database = await openDB<Schema>("moeDatabase", 1, {
             upgrade: database => {
                 const store = database.createObjectStore("moeStore", {
                     keyPath: ["username", "realm", "vehicle"],
                 })
                 store.createIndex("account", ["username", "realm"])
             },
-            blocked: () => this.handleStatusChange(Blocked()),
-            blocking: () => this.handleStatusChange(Blocking()),
-            terminated: () => {
-                this.handleStatusChange(Irrecoverable())
-                this.database = undefined
+            blocked: () => {
+                throw new DbBlockedError()
             },
         })
-            .then(database => {
-                this.database = database
-                this.handleStatusChange(Open())
-            })
-            .catch(() => {
-                this.handleStatusChange(Irrecoverable())
-            })
-    }
-
-    observe(observer: (value: DatabaseStatus) => void) {
-        observer(this.status)
-        return this.emitter.observe(observer)
     }
 
     async processUpdate(update: MoeUpdate) {
-        if (!this.database) throw new Error("Database not opened.")
+        if (!this.database) throw new DbClosedError()
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")
         for (const [vehicleId, record] of Object.entries(update.vehicles)) {
@@ -100,7 +73,7 @@ export class Database implements Observable<DatabaseStatus> {
     }
 
     async processHistory(history: MoeHistory) {
-        if (!this.database) throw new Error("Database not opened.")
+        if (!this.database) throw new DbClosedError()
         const tx = this.database.transaction("moeStore", "readwrite")
         const store = tx.objectStore("moeStore")
         for (const account of history.accounts) {
@@ -124,10 +97,6 @@ export class Database implements Observable<DatabaseStatus> {
                 }
             }
         }
-    }
-
-    private handleStatusChange(newStatus: DatabaseStatus) {
-        this.status = newStatus
-        this.emitter.emit(newStatus)
+        await tx.done
     }
 }

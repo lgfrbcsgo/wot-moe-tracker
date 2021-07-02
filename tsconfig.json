@@ -5,6 +5,7 @@
         "target": "es2020",
         "sourceMap": true,
         "strict": true,
+        "noImplicitOverride": true,
         "lib": [
             "es2020",
             "dom"
