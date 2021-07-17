@@ -82,3 +82,6 @@ module.exports = ({ ifDev, ifProd }) => ({
         minimizer: [new TerserJSPlugin(), new CssMinimizerPlugin()],
     },
 })
+
+module.exports.preserve = value => value
+module.exports.ignore = value => (Array.isArray(value) ? [] : {})
