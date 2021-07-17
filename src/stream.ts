@@ -44,3 +44,20 @@ export class WritableReactiveValue<T> extends WritableStream<T> implements React
         return this
     }
 }
+
+export function throttleAnimationFrame<T>(stream: Stream<T>): Stream<T> {
+    return {
+        observe(observer: (value: T) => void): () => void {
+            let animationFrameHandle: number | undefined = undefined
+            return stream.observe(value => {
+                if (animationFrameHandle !== undefined) {
+                    cancelAnimationFrame(animationFrameHandle)
+                }
+                animationFrameHandle = requestAnimationFrame(() => {
+                    animationFrameHandle = undefined
+                    observer(value)
+                })
+            })
+        }
+    }
+}
