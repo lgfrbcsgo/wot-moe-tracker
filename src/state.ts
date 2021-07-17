@@ -1,4 +1,5 @@
 import { WritableReactiveValue } from "./stream"
+import { Variant } from "./types"
 
 export type Committer<State, Args extends unknown[]> = (state: State, ...args: Args) => State
 
@@ -15,5 +16,3 @@ export function createState<State>(initialState: State) {
 
     return { committer, state$: state$.readonly() }
 }
-
-export const { committer, state$ } = createState(undefined)

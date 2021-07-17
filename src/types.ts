@@ -9,6 +9,10 @@ import {
     record,
 } from "./guards"
 
+export type Variant<Type extends string, Properties extends { type?: never } = {}> = {
+    type: Type
+} & Properties
+
 export type Vehicle = GuardedValue<typeof isVehicle>
 export const isVehicle = record({
     id: isString,
