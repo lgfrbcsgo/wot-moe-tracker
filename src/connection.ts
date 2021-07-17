@@ -1,5 +1,5 @@
 import { isString } from "./guards"
-import { WritableReactiveValue, WritableStream } from "./stream"
+import { reactiveValue, stream } from "./stream"
 import { isMoeMessage, MoeMessage } from "./types"
 
 export const enum ConnectionStatus {
@@ -9,51 +9,54 @@ export const enum ConnectionStatus {
     InvalidMessageFormat,
 }
 
-export class Connection {
-    private _status$ = new WritableReactiveValue(ConnectionStatus.Disconnected)
-    private _messages$ = new WritableStream<MoeMessage>()
-    private socket: WebSocket | undefined
+export function openConnection() {
+    const status$ = reactiveValue(ConnectionStatus.Disconnected)
+    const messages$ = stream<MoeMessage>()
 
-    readonly status$ = this._status$.readonly()
-    readonly messages$ = this._messages$.readonly()
+    let socket: WebSocket | undefined = undefined
 
-    connect() {
-        if (this.socket) return
-        this.socket = new WebSocket("ws://localhost:15456")
-        this.socket.onopen = () => this.handleStatusChange(ConnectionStatus.Connected)
-        this.socket.onclose = () => this.handleStatusChange(ConnectionStatus.Disconnected)
-        this.socket.onmessage = ({ data }) => this.handleMessage(data)
-        this.handleStatusChange(ConnectionStatus.Connecting)
+    const connect = () => {
+        if (socket) return
+        socket = new WebSocket("ws://localhost:15456")
+        socket.onopen = () => handleStatusChange(ConnectionStatus.Connected)
+        socket.onclose = () => handleStatusChange(ConnectionStatus.Disconnected)
+        socket.onmessage = ({ data }) => handleMessage(data)
+        handleStatusChange(ConnectionStatus.Connecting)
     }
 
-    private handleMessage(data: unknown) {
+    const handleMessage = (data: unknown) => {
         if (!isString(data)) {
-            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
+            return handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
 
         let payload: unknown
         try {
             payload = JSON.parse(data)
         } catch (e) {
-            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
+            return handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
 
         if (isMoeMessage(payload)) {
-            return this._messages$.emit(payload)
+            return messages$.emit(payload)
         } else {
-            return this.handleStatusChange(ConnectionStatus.InvalidMessageFormat)
+            return handleStatusChange(ConnectionStatus.InvalidMessageFormat)
         }
     }
 
-    private handleStatusChange(newStatus: ConnectionStatus) {
+    const handleStatusChange = (newStatus: ConnectionStatus) => {
         if (ConnectionStatus.Disconnected === newStatus) {
-            this.socket = undefined
-            if (ConnectionStatus.InvalidMessageFormat === this._status$.value) return
-            setTimeout(() => this.connect(), 10000)
+            socket = undefined
+            if (ConnectionStatus.InvalidMessageFormat === status$.value) return
+            setTimeout(connect, 10000)
         }
         if (ConnectionStatus.InvalidMessageFormat === newStatus) {
-            this.socket?.close()
+            socket?.close()
         }
-        this._status$.emit(newStatus)
+        status$.emit(newStatus)
+    }
+
+    return {
+        status$: status$.readonly(),
+        messages$: messages$.readonly(),
     }
 }

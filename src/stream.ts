@@ -21,6 +21,10 @@ export class WritableStream<T> implements Stream<T> {
     }
 }
 
+export function stream<T>() {
+    return new WritableStream<T>()
+}
+
 export interface ReactiveValue<T> extends Stream<T> {
     readonly value: T
 }
@@ -43,6 +47,10 @@ export class WritableReactiveValue<T> extends WritableStream<T> implements React
     override readonly(): ReactiveValue<T> {
         return this
     }
+}
+
+export function reactiveValue<T>(value: T) {
+    return new WritableReactiveValue(value)
 }
 
 export function throttleAnimationFrame<T>(stream: Stream<T>): Stream<T> {
