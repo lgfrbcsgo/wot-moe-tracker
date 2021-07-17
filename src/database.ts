@@ -1,7 +1,7 @@
 import { DBSchema, openDB } from "idb"
 import { IDBPDatabase } from "idb/build/esm/entry"
-import { MoeHistory, MoeMessage, MoeUpdate } from "./connection"
 import { assertNever } from "@practical-fp/union-types"
+import { MoeHistory, MoeMessage, MoeUpdate } from "./types"
 
 export interface MarkOfExcellenceRecord {
     timestamp: number

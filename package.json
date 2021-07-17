@@ -2,7 +2,8 @@
     "private": true,
     "scripts": {
         "start": "webpack serve --config webpack.dev.config.js",
-        "build": "webpack --config webpack.prod.config.js"
+        "build": "webpack --config webpack.prod.config.js",
+        "generate-tanks-json": "ts-node scripts/generate-tanks-json.ts"
     },
     "devDependencies": {
         "clean-webpack-plugin": "3.0.0",
@@ -16,6 +17,7 @@
         "sass-loader": "11.1.1",
         "terser-webpack-plugin": "5.1.2",
         "ts-loader": "9.2.2",
+        "ts-node": "10.1.0",
         "typescript": "4.3.2",
         "webpack": "5.38.1",
         "webpack-bundle-analyzer": "4.4.2",
