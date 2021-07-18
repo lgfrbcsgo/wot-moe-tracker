@@ -4,22 +4,27 @@ import { openDatabase, processMoeMessage } from "./database"
 import { createState } from "./state"
 import { throttleAnimationFrame } from "./stream"
 import { assertNever } from "@practical-fp/union-types"
-import { Variant } from "./types"
+import { isVehicle, Variant, Vehicle } from "./types"
 
-import url from "../public/tanks.json"
-console.log(url)
+import tanksJsonUrl from "../public/tanks.json"
+import { array } from "./guards"
 
-type State = Variant<"loading"> | Variant<"content"> | Variant<"error">
+type State = Variant<"loading"> | Variant<"content", { vehicles: Vehicle[] }> | Variant<"error">
 
 const { committer, state$ } = createState<State>({ type: "loading" })
 
-const setLoaded = committer(() => ({ type: "content" }))
+const setLoaded = committer((state, vehicles: Vehicle[]) => ({ type: "content", vehicles }))
 
 const setError = committer(() => ({ type: "error" }))
 
 async function init() {
     const db = await openDatabase()
-    setLoaded()
+    const response = await fetch(tanksJsonUrl)
+    const vehicles = await response.json()
+    if (!array(isVehicle)(vehicles)) {
+        throw new Error("Invalid data format")
+    }
+    setLoaded(vehicles)
     const { messages$, status$ } = openConnection()
     messages$.observe(message => processMoeMessage(db, message))
 }

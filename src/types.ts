@@ -9,7 +9,7 @@ import {
     record,
 } from "./guards"
 
-export type Variant<Type extends string, Properties extends { type?: never } = {}> = {
+export type Variant<Type extends string, Properties extends {} = {}> = {
     type: Type
 } & Properties
 
