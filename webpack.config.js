@@ -21,7 +21,7 @@ module.exports = ({ ifDev, ifProd }) => ({
     }),
     output: {
         path: DIST,
-        filename: "[name].[fullhash].js",
+        filename: "[name].[contenthash].js",
         ...ifProd({
             publicPath: "/wot-moe-tracker/",
         }),
@@ -53,6 +53,14 @@ module.exports = ({ ifDev, ifProd }) => ({
                     "sass-loader",
                 ],
             },
+            {
+                test: /\.json$/,
+                loader: "file-loader",
+                type: "javascript/auto",
+                options: {
+                    name: "[name].[contenthash].[ext]",
+                },
+            },
         ],
     },
     plugins: [
@@ -62,7 +70,7 @@ module.exports = ({ ifDev, ifProd }) => ({
             template: TEMPLATE,
         }),
         new MiniCssExtractPlugin({
-            filename: "[name].[fullhash].css",
+            filename: "[name].[contenthash].css",
         }),
         new BundleAnalyzerPlugin({
             analyzerMode: "static",

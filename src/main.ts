@@ -6,6 +6,9 @@ import { throttleAnimationFrame } from "./stream"
 import { assertNever } from "@practical-fp/union-types"
 import { Variant } from "./types"
 
+import url from "../public/tanks.json"
+console.log(url)
+
 type State = Variant<"loading"> | Variant<"content"> | Variant<"error">
 
 const { committer, state$ } = createState<State>({ type: "loading" })
