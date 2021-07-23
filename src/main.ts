@@ -1,7 +1,7 @@
 import { html, render } from "lit-html"
 import { openConnection } from "./connection"
 import { openDatabase, processMoeMessage } from "./database"
-import { createState } from "./state"
+import { createState, Mapper } from "./state"
 import { throttleAnimationFrame } from "./stream"
 import { assertNever } from "@practical-fp/union-types"
 import { isVehicle, Variant, Vehicle } from "./types"
@@ -11,11 +11,15 @@ import { array } from "./guards"
 
 type State = Variant<"loading"> | Variant<"content", { vehicles: Vehicle[] }> | Variant<"error">
 
-const { committer, state$ } = createState<State>({ type: "loading" })
+const { mapState, state$ } = createState<State>({ type: "loading" })
 
-const setLoaded = committer((state, vehicles: Vehicle[]) => ({ type: "content", vehicles }))
+function setLoaded(vehicles: Vehicle[]): Mapper<State> {
+    return () => ({ type: "content", vehicles })
+}
 
-const setError = committer(() => ({ type: "error" }))
+function setError(): Mapper<State> {
+    return () => ({ type: "error" })
+}
 
 async function init() {
     const db = await openDatabase()
@@ -24,7 +28,7 @@ async function init() {
     if (!array(isVehicle)(vehicles)) {
         throw new Error("Invalid data format")
     }
-    setLoaded(vehicles)
+    mapState(setLoaded(vehicles))
     const { messages$, status$ } = openConnection()
     messages$.observe(message => processMoeMessage(db, message))
 }
@@ -46,5 +50,5 @@ const root = document.getElementById("root")!
 throttleAnimationFrame(state$).observe(state => render(view(state), root))
 init().catch(error => {
     console.error(error)
-    setError()
+    mapState(setError())
 })
